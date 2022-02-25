@@ -1,3 +1,4 @@
+from multiprocessing.sharedctypes import Value
 import numpy as np
 import matplotlib.pyplot as plt
 from scipy.spatial import Delaunay
@@ -31,7 +32,25 @@ class TIN:
             self.triangulation, [(x, y)], bruteforce=False, tol=None)
 
         p0, p1, p2 = self.triangulation.simplices[index][0]
+        f0, f1, f2 = self.altitude[p0], self.altitude[p1], self.altitude[p2]
         p0, p1, p2 = self.triangulation.points[p0], self.triangulation.points[p1], self.triangulation.points[p2]
+
+        A = np.column_stack([np.row_stack([p0, p1, p2]), np.ones(3)])
+        try:
+            a, b, c = np.matmul(np.column_stack(
+                [f0, f1, f2]), np.linalg.inv(A))[0]
+        except np.linalg.LinAlgError:
+            raise ValueError(
+                "Can't interpolate given point! No suitable 3d plane between triangulation exists!")
+        # print(a, b, c)
+        # f_interp = a*x + b*y + c
+        # fig = plt.figure()
+        ax = plt.axes(projection='3d')
+        ax.plot_trisurf(self.x, self.y, self.altitude,
+                        color='white', cmap="BrBG", alpha=1)
+        # print(x, y, f_interp)
+        ax.plot()
+        plt.show()
 
     def plotAltitude(self):
         fig = plt.figure()
@@ -78,6 +97,6 @@ datapoints = np.column_stack([X, Y, elevation])
 myterrain = TIN(datapoints)
 
 
-# myterrain.findElevation(0, 0)
+myterrain.findElevation(0, 0)
 # myterrain.plotTriangulation()
 # myterrain.plotAltitude()
