@@ -1,8 +1,9 @@
+from multiprocessing.sharedctypes import Value
 import numpy as np
 import matplotlib.pyplot as plt
 from scipy.spatial import Delaunay
-from scipy.interpolate import griddata
 from matplotlib.collections import LineCollection
+
 from perlin import PerlinNoiseFactory
 
 
@@ -15,7 +16,6 @@ class TIN:
         self.x = datapoints[:, 0]
         self.y = datapoints[:, 1]
         self.altitude = datapoints[:, 2]
-        assert np.all(self.altitude >= 0), 'Negative altitudes!'
         self.Initialize()
 
     def Initialize(self):
@@ -23,11 +23,11 @@ class TIN:
         self.triangulation = Delaunay(points)
         # Delaunay()
 
-    def plotTriangulation(self, dotSize=3, autoShow=True):
+    def plotTriangulation(self, autoShow=True):
         fig = plt.figure()
         ax = plt.axes()
         ax.triplot(self.x,  self.y, self.triangulation.simplices)
-        ax.plot(self.x, self.y, 'o', markersize=dotSize)
+        ax.plot(self.x, self.y, 'o', markersize=2)
         if autoShow:
             plt.show()
         return ax
@@ -36,66 +36,33 @@ class TIN:
         index = Delaunay.find_simplex(
             self.triangulation, [(x, y)], bruteforce=False, tol=None)
 
-        if index == -1:
-            raise ValueError("Not within map")
-
         p0, p1, p2 = self.triangulation.simplices[index][0]
         f0, f1, f2 = self.altitude[p0], self.altitude[p1], self.altitude[p2]
         p0, p1, p2 = self.triangulation.points[p0], self.triangulation.points[p1], self.triangulation.points[p2]
 
-        height = griddata([p0, p1, p2], [f0, f1, f2],
-                          [x, y], method="linear")[0]
-
-        ax = self.plotAltitude(autoShow=False, alpha=0.7)
-        ax.plot([p0[0], p1[0], p2[0], p0[0]], [p0[1], p1[1], p2[1], p0[1]],
-                [f0, f1, f2, f0], marker=".", linewidth=2, c="red")
-        ax.plot([x], [y], [height], marker="D", markersize=7, c="red")
+        A = np.column_stack([np.row_stack([p0, p1, p2]), np.ones(3)])
+        try:
+            a, b, c = np.matmul(np.column_stack(
+                [f0, f1, f2]), np.linalg.inv(A))[0]
+        except np.linalg.LinAlgError:
+            raise ValueError(
+                "Can't interpolate given point! No suitable 3d plane between triangulation exists!")
+        # print(a, b, c)
+        # f_interp = a*x + b*y + c
+        # fig = plt.figure()
+        ax = plt.axes(projection='3d')
+        ax.plot_trisurf(self.x, self.y, self.altitude,
+                        color='white', cmap="BrBG", alpha=1)
+        # print(x, y, f_interp)
+        ax.plot()
         plt.show()
 
-    def plotPeaks(self):
-        self.plotExtremes(peaks=True)
-
-    def plotPits(self):
-        self.plotExtremes(peaks=False)
-
-    def plotExtremes(self, peaks=True):
-
-        indptr, indices = self.triangulation.vertex_neighbor_vertices
-        extremes = []
-
-        # print(indices)
-        for i in range(len(self.triangulation.points)):
-            neighbor_vertices_indexes = indices[indptr[i]:indptr[i+1]]
-            # print(i, "-->", neighbor_vertices_indexes)
-            isExtreme = True
-            for neighbor in neighbor_vertices_indexes:
-                if peaks:
-                    if self.altitude[neighbor] > self.altitude[i]:
-                        isExtreme = False
-                else:
-                    if self.altitude[neighbor] < self.altitude[i]:
-                        isExtreme = False
-            if isExtreme:
-                extremes.append(i)
-
-        # print(extremes)
-        ax = self.plotAltitude(autoShow=False, alpha=0.7)
-        for i in extremes:
-            # print(f'Point: {self.x[i]}, {self.y[i]}, {self.altitude[i]}')
-            ax.plot(self.x[i], self.y[i], self.altitude[i],
-                    c="blue", marker="*", markersize=7)
-        plt.show()
-        # xs = self.x[extremes]
-        # altitudes = self.altitude[extremes]
-
-    def plotAltitude(self, autoShow=True, alpha=1):
+    def plotAltitude(self):
         fig = plt.figure()
         ax = plt.axes(projection='3d')
         ax.plot_trisurf(self.x, self.y, self.altitude,
-                        color='white', cmap="BrBG", alpha=alpha)
-        if autoShow:
-            plt.show()
-        return ax
+                        color='white', cmap="BrBG", alpha=1)
+        plt.show()
 
     def plotDualGraph(self, autoShow=True):
         # Calculate the midpoint for each triangle (for display reasons)
@@ -138,9 +105,23 @@ class TIN:
 '''Generate Input: '''
 PNFactory = PerlinNoiseFactory(2, octaves=1)
 
+'''Evenly sampled generation'''
+# frameSize = 10
+# X, Y = np.meshgrid(np.linspace(-2, 2, frameSize),
+#                    np.linspace(-2, 2, frameSize))
+
+# noise = np.zeros([frameSize, frameSize])
+# for i in range(frameSize):
+#     for j in range(frameSize):
+#         noise[i, j] = PNFactory(i/frameSize, j/frameSize)
+
+
+# elevation = np.reshape(noise, (-1,))
+# datapoints = np.column_stack([X, Y, np.reshape(noise, (-1,))])
+
 '''Non-evenly sampled generation'''
 
-sz_datapoints = 100
+sz_datapoints = 7
 
 X = np.zeros(sz_datapoints)
 Y = np.zeros(sz_datapoints)
@@ -150,23 +131,32 @@ for i in range(sz_datapoints):
     X[i], Y[i] = x, y
     elevation[i] = PNFactory(x, y)
 
-# make elevations actually elevations (positive)
 elevation -= min(elevation)
 
 datapoints = np.column_stack([X, Y, elevation])
 
 myterrain = TIN(datapoints)
 
+myterrain.plotDualGraph()
+# print(myterrain.triangulation.convex_hull)
 
-# myterrain.plotPeaks()
-myterrain.plotPits()
+# print(len(myterrain.triangulation.simplices))
+# print(len(myterrain.triangulation.neighbors))
+
+
+# lc = mc.LineCollection(lines, linewidths=2, colors=colours)
+# fig, ax = plt.subplots()
+# ax.add_collection(lc)
+# ax.autoscale()
+
+# k = 1
+# print(myterrain.triangulation.simplices[k])
+# print(myterrain.triangulation.neighbors[k])
+
+# indptr, indices = myterrain.triangulation.vertex_neighbor_vertices
+# print(indices[indptr[k]:indptr[k+1]])
 
 # myterrain.plotDualGraph()
-
-# myterrain.plotTriangulation()
-
-
-# print(myterrain.triangulation.vertex_neighbor_vertices)
-# myterrain.findElevation(*(np.random.random(2)*2 - 1))
+# myterrain.findElevation(0, 0)
 # myterrain.plotTriangulation()
 # myterrain.plotAltitude()
