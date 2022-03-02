@@ -1,6 +1,6 @@
-from multiprocessing.sharedctypes import Value
 import numpy as np
 import matplotlib.pyplot as plt
+import matplotlib.lines as mlines
 from scipy.spatial import Delaunay
 from scipy.interpolate import griddata
 from matplotlib.collections import LineCollection
@@ -45,7 +45,7 @@ class TIN:
         self.triangulation = Delaunay(points)
         self.triangulation.vertex_to_simplex
 
-    def plot_triangulation(self, dot_size=3, auto_show=True, title="TIN Triangulation"):
+    def plot_triangulation(self, dot_size=0, auto_show=True, title="TIN Triangulation"):
         """Plot the 2D triangulation of the TIN.
 
         Creates a new matplotlib.pyplot Figure and Axes, and plots the 2D triangulation of the TIN.
@@ -53,7 +53,7 @@ class TIN:
         Parameters
         ----------
         dot_size : int, optional
-            The size of the drawn dots, by default 3
+            The size of the drawn vertex, if 0 vertex are not drawn, by default 0
         auto_show : bool, optional
             If true, calls plt.show() performing a blocking call to display the triangulation, by default True
         title : str, optional
@@ -67,7 +67,8 @@ class TIN:
         fig = plt.figure(title)
         ax = plt.axes()
         ax.triplot(self.x,  self.y, self.triangulation.simplices)
-        ax.plot(self.x, self.y, 'o', markersize=dot_size)
+        if dot_size > 0:
+            ax.plot(self.x, self.y, 'o', markersize=dot_size)
         if auto_show:
             plt.show()
         return ax
@@ -115,6 +116,11 @@ class TIN:
             ax.plot([p0[0], p1[0], p2[0], p0[0]], [p0[1], p1[1], p2[1], p0[1]],
                     [f0, f1, f2, f0], marker=".", linewidth=2, c="red")
             ax.plot([x], [y], [height], marker="D", markersize=7, c="red")
+            lab1 = mlines.Line2D([], [], color='red', marker='.', linestyle='None',
+                                 markersize=10, label='Sample Points Used')
+            lab2 = mlines.Line2D([], [], color='red', marker='D', linestyle='None',
+                                 markersize=10, label='Interpolated Point')
+            plt.legend(handles=[lab1, lab2])
             plt.show()
         return height
 
@@ -199,8 +205,7 @@ class TIN:
             Whether the point is a local extremum, according to parameters.
         """
         indptr, indices = self.triangulation.vertex_neighbor_vertices
-        neighbor_vertices_indexes = indices[indptr[pt_index]
-            :indptr[pt_index+1]]
+        neighbor_vertices_indexes = indices[indptr[pt_index]                                            :indptr[pt_index+1]]
         is_extreme = True
         for neighbor in neighbor_vertices_indexes:
             if maximum:
@@ -222,14 +227,21 @@ class TIN:
         extremes = [i for i in range(
             len(self.altitude)) if self.is_local_extremum(i, maximum=maximum)]
         if maximum:
-            title = "TIN Local Maximum"
+            maxminstring = "Local Maximum"
+            color, mark = "blue", "*"
         else:
-            title = "TIN Local Minimum"
+            maxminstring = "Local Minimum"
+            color, mark = "red", "+"
+
+        title = "TIN " + maxminstring
         ax = self.plot_elevation_profile(
             autoShow=False, alpha=0.7, title=title)
         for i in extremes:
             ax.plot(self.x[i], self.y[i], self.altitude[i],
-                    c="blue", marker="*", markersize=7)
+                    c=color, marker=mark, markersize=7)
+        lab = mlines.Line2D([], [], color=color, marker=mark, linestyle='None',
+                            markersize=10, label=maxminstring)
+        plt.legend(handles=[lab])
         plt.show()
 
     def plot_elevation_profile(self, autoShow=True, alpha=1, title="TIN Elevation Profile"):
@@ -261,13 +273,15 @@ class TIN:
             plt.show()
         return ax
 
-    def plot_dual_graph(self, auto_show=True):
+    def plot_dual_graph(self, auto_show=True, dot_size=2.0):
         """Plot the associated dual graph of the TIN triangulation.
 
         Parameters
         ----------
         auto_show : bool, optional
             If true, calls plt.show() performing a blocking call to display the triangulation, by default True
+        dot_size : int, optional
+            The size of the drawn graph vertex
 
         Returns
         -------
@@ -303,7 +317,12 @@ class TIN:
         ax = self.plot_triangulation(
             auto_show=False, title="TIN Dual Graph")
         ax.add_collection(lc)
-        ax.scatter(midpoints[:, 0], midpoints[:, 1])
+        ax.scatter(midpoints[:, 0], midpoints[:, 1], s=dot_size)
+        lab = mlines.Line2D([], [], color="blue",
+                            markersize=10, label="Triangulation")
+        lab2 = mlines.Line2D([], [], color="green",
+                             markersize=10, label="Dual Graph")
+        plt.legend(handles=[lab, lab2])
         if auto_show:
             plt.show()
         return ax

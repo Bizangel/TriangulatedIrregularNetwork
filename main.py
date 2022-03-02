@@ -2,6 +2,7 @@ from TIN import TIN
 import numpy as np
 
 if __name__ == "__main__":
+    # Do also check main2.py, due to the high number of points, it might not be easy to see all the features of the TIN implementation.
     # Initialization of TIN object
     datapoints = np.genfromtxt("pts1000c.dat")
     tin_net = TIN(datapoints)
@@ -20,7 +21,6 @@ if __name__ == "__main__":
     tin_net.plot_peaks()
 
     # PT4: a) Query Whether a point is a water pit. Pit point in sample data or relative minimum
-    pt_index = np.random.randint(len(datapoints))  # Get a random sample point
     print(f"Is ({x},{y}) a minimum?: {tin_net.is_pit(pt_index)}")
     # PT4: b) Report all peaks.
     tin_net.plot_pits()
