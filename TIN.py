@@ -1,43 +1,108 @@
+from multiprocessing.sharedctypes import Value
 import numpy as np
 import matplotlib.pyplot as plt
 from scipy.spatial import Delaunay
 from scipy.interpolate import griddata
 from matplotlib.collections import LineCollection
-from perlin import PerlinNoiseFactory
 
 
 class TIN:
-    '''
-    Triangulated Irregular Network
-    '''
+    """Represents a TIN (Triangulated Irregular Network) of surface elevations.
 
-    def __init__(self, datapoints):
+    This class allows for several methods on a TIN, such as plotting,
+    querying local maximums and minimums and plotting the Dual Graph of associated triangulation.
+    """
+
+    def __init__(self, datapoints: np.ndarray):
+        """Initialize a TIN object out of a numpy ndarray.
+
+        Parameters
+        ----------
+        datapoints : ndarray
+            Numpy 2D array composed by three columns: x,y,z where z is the height.
+            The datapoints to initialize and triangulate the TIN with.
+
+        Raises
+        ------
+        ValueError
+            Raised when an incompatible array is given as an input.
+        """
+
+        if (datapoints.ndim != 2):
+            raise ValueError(
+                "Incompatible Array Dimension in TIN object creation")
+        if (datapoints.shape[1] != 3):
+            raise ValueError(
+                "Incompatible Array shape in TIN object creation, must be composed of three columns: x,y and z/height")
         self.x = datapoints[:, 0]
         self.y = datapoints[:, 1]
         self.altitude = datapoints[:, 2]
-        assert np.all(self.altitude >= 0), 'Negative altitudes!'
-        self.Initialize()
+        if not np.all(self.altitude >= 0):
+            raise ValueError(
+                'Received negative altitude in TIN object creation.')
 
-    def Initialize(self):
         points = np.column_stack((self.x, self.y))
         self.triangulation = Delaunay(points)
-        # Delaunay()
+        self.triangulation.vertex_to_simplex
 
-    def plotTriangulation(self, dotSize=3, autoShow=True):
-        fig = plt.figure()
+    def plot_triangulation(self, dot_size=3, auto_show=True, title="TIN Triangulation"):
+        """Plot the 2D triangulation of the TIN.
+
+        Creates a new matplotlib.pyplot Figure and Axes, and plots the 2D triangulation of the TIN.
+
+        Parameters
+        ----------
+        dot_size : int, optional
+            The size of the drawn dots, by default 3
+        auto_show : bool, optional
+            If true, calls plt.show() performing a blocking call to display the triangulation, by default True
+        title : str, optional
+            Optional title for the plot figure, by default TIN Triangulation
+
+        Returns
+        -------
+        ~.axes.Axes
+            A matplotlib.pyplot Axes object, with the 2D triangulation.
+        """
+        fig = plt.figure(title)
         ax = plt.axes()
         ax.triplot(self.x,  self.y, self.triangulation.simplices)
-        ax.plot(self.x, self.y, 'o', markersize=dotSize)
-        if autoShow:
+        ax.plot(self.x, self.y, 'o', markersize=dot_size)
+        if auto_show:
             plt.show()
         return ax
 
-    def findElevation(self, x, y):
+    def find_elevation(self, x: float, y: float, display=False):
+        """Find the elevation of given point in the TIN surface.
+
+        Finds the elevation of given point in the TIN surface, via linear interpolation.
+        Raises an error if point is outside triangulation. 
+        Optionally displays the point and the used triangle plane in interpolation.
+
+        Parameters
+        ----------
+        x : float
+            The X-coordinate of the point to find the elevation.
+        y : float
+            The Y-coordinate of the point to find the elevation.
+        display : bool, optional
+            If true, creates a new plt figure and displays the point and corresponding triangle, by default False
+
+        Raises
+        ------
+        ValueError
+            Raised if given point is outside triangulated surface.
+
+        Returns
+        -------
+        float
+            The elevation of the requested planar location.
+        """
         index = Delaunay.find_simplex(
             self.triangulation, [(x, y)], bruteforce=False, tol=None)
 
         if index == -1:
-            raise ValueError("Not within map")
+            raise ValueError("Requested point not within Triangulation.")
 
         p0, p1, p2 = self.triangulation.simplices[index][0]
         f0, f1, f2 = self.altitude[p0], self.altitude[p1], self.altitude[p2]
@@ -45,51 +110,150 @@ class TIN:
 
         height = griddata([p0, p1, p2], [f0, f1, f2],
                           [x, y], method="linear")[0]
+        if display:
+            ax = self.plot_elevation_profile(autoShow=False, alpha=0.7)
+            ax.plot([p0[0], p1[0], p2[0], p0[0]], [p0[1], p1[1], p2[1], p0[1]],
+                    [f0, f1, f2, f0], marker=".", linewidth=2, c="red")
+            ax.plot([x], [y], [height], marker="D", markersize=7, c="red")
+            plt.show()
+        return height
 
-        ax = self.plotAltitude(autoShow=False, alpha=0.7)
-        ax.plot([p0[0], p1[0], p2[0], p0[0]], [p0[1], p1[1], p2[1], p0[1]],
-                [f0, f1, f2, f0], marker=".", linewidth=2, c="red")
-        ax.plot([x], [y], [height], marker="D", markersize=7, c="red")
-        plt.show()
+    def plot_local_maximum(self):
+        """Plot the local maximum of the surface.
 
-    def plotPeaks(self):
-        self.plotExtremes(peaks=True)
+        Wrapper for plot_local_extremum.
+        """
+        self.plot_local_extremum(maximum=True)
 
-    def plotPits(self):
-        self.plotExtremes(peaks=False)
+    def plot_local_minimum(self):
+        """Plot the local minimum of the surface.
 
-    def plotExtremes(self, peaks=True):
+        Wrapper for plot_local_extremum.
+        """
+        self.plot_local_extremum(maximum=False)
 
+    def plot_peaks(self):
+        """Plot the peaks of the given surface (local maximum).
+
+        Alias of plot_local_maximum.
+        """
+        self.plot_local_maximum()
+
+    def plot_pits(self):
+        """Plot the pits of the given surface (local minimum).
+
+        Alias of plot_local_minimum.
+        """
+        self.plot_local_minimum()
+
+    def is_peak(self, pt_index: int):
+        """Query wether a sample/input point is a peak (local maximum)
+
+        Wrapper for is_local_extremum.
+
+        Parameters
+        ----------
+        pt_index : int
+            The index of the point to query, in the sample (input) points.
+
+        Returns
+        -------
+        bool
+            Whether the point is a peak.
+        """
+        return self.is_local_extremum(pt_index, maximum=True)
+
+    def is_pit(self, pt_index: int):
+        """Query wether a sample/input point is a pit (local minimum)
+
+        Wrapper for is_local_extremum.
+
+        Parameters
+        ----------
+        pt_index : int
+            The index of the point to query, in the sample (input) points.
+
+        Returns
+        -------
+        bool
+            Whether the point is a pit.
+        """
+        return self.is_local_extremum(pt_index, maximum=False)
+
+    def is_local_extremum(self, pt_index: int, maximum=True):
+        """Query wether a sample point is a local extremum.
+
+        A local minimum is a point that is lower than all of it's neighbors
+        A local maximum is a point that is higher than all of it's neighbors
+
+        Parameters
+        ----------
+        pt_index : int
+            The index of the point to query, in the sample (input) points.
+        maximum : bool, optional
+            If true, will check for local maximum, else, will check for local minimum, by default True
+
+        Returns
+        -------
+        bool
+            Whether the point is a local extremum, according to parameters.
+        """
         indptr, indices = self.triangulation.vertex_neighbor_vertices
-        extremes = []
+        neighbor_vertices_indexes = indices[indptr[pt_index]
+            :indptr[pt_index+1]]
+        is_extreme = True
+        for neighbor in neighbor_vertices_indexes:
+            if maximum:
+                if self.altitude[neighbor] > self.altitude[pt_index]:
+                    is_extreme = False
+            else:
+                if self.altitude[neighbor] < self.altitude[pt_index]:
+                    is_extreme = False
+        return is_extreme
 
-        # print(indices)
-        for i in range(len(self.triangulation.points)):
-            neighbor_vertices_indexes = indices[indptr[i]:indptr[i+1]]
-            # print(i, "-->", neighbor_vertices_indexes)
-            isExtreme = True
-            for neighbor in neighbor_vertices_indexes:
-                if peaks:
-                    if self.altitude[neighbor] > self.altitude[i]:
-                        isExtreme = False
-                else:
-                    if self.altitude[neighbor] < self.altitude[i]:
-                        isExtreme = False
-            if isExtreme:
-                extremes.append(i)
+    def plot_local_extremum(self, maximum=True):
+        """Plot the either the local maximums or local minimums of a function.
 
-        # print(extremes)
-        ax = self.plotAltitude(autoShow=False, alpha=0.7)
+        Parameters
+        ----------
+        maximum : bool, optional
+            If True, will plot all local maximums, plots all local minimums otherwise, by default True
+        """
+        extremes = [i for i in range(
+            len(self.altitude)) if self.is_local_extremum(i, maximum=maximum)]
+        if maximum:
+            title = "TIN Local Maximum"
+        else:
+            title = "TIN Local Minimum"
+        ax = self.plot_elevation_profile(
+            autoShow=False, alpha=0.7, title=title)
         for i in extremes:
-            # print(f'Point: {self.x[i]}, {self.y[i]}, {self.altitude[i]}')
             ax.plot(self.x[i], self.y[i], self.altitude[i],
                     c="blue", marker="*", markersize=7)
         plt.show()
-        # xs = self.x[extremes]
-        # altitudes = self.altitude[extremes]
 
-    def plotAltitude(self, autoShow=True, alpha=1):
-        fig = plt.figure()
+    def plot_elevation_profile(self, autoShow=True, alpha=1, title="TIN Elevation Profile"):
+        """Plot the associated surface to the TIN.
+
+        Creates a new matplotlib.pyplot Figure and Axes, and plots the associated surface to the TIN.
+
+        Parameters
+        ----------
+        auto_show : bool, optional
+            If true, calls plt.show() performing a blocking call to display the triangulation, by default True
+
+        alpha : int, optional
+            The transparency of the plotted surface, by default 1
+
+        title : str, optional
+            An optional title for the plot figure, by default TIN Elevation Profile
+
+        Returns
+        -------
+        ~.axes.Axes
+            A matplotlib.pyplot Axes object, with 3D projection and the plotted surface.
+        """
+        fig = plt.figure(title)
         ax = plt.axes(projection='3d')
         ax.plot_trisurf(self.x, self.y, self.altitude,
                         color='white', cmap="BrBG", alpha=alpha)
@@ -97,7 +261,19 @@ class TIN:
             plt.show()
         return ax
 
-    def plotDualGraph(self, autoShow=True):
+    def plot_dual_graph(self, auto_show=True):
+        """Plot the associated dual graph of the TIN triangulation.
+
+        Parameters
+        ----------
+        auto_show : bool, optional
+            If true, calls plt.show() performing a blocking call to display the triangulation, by default True
+
+        Returns
+        -------
+         ~.axes.Axes
+            A matplotlib.pyplot Axes object, with the dual graph on top of the triangulation 
+        """
         # Calculate the midpoint for each triangle (for display reasons)
         n_triangles = len(self.triangulation.simplices)
         midpoints = self.triangulation.points[self.triangulation.simplices]
@@ -105,9 +281,7 @@ class TIN:
 
         # Calculate the pair of indices for each edge in the dual graph (according to the neighbors)
         x = self.triangulation.neighbors[range(n_triangles)]
-        # print(x)
         tilehelp = np.tile(np.arange(n_triangles), (3, 1)).T
-        # print(tilehelp)
         tilehelp = tilehelp.reshape((-1,))
 
         x = np.reshape(x, (n_triangles*3))
@@ -126,47 +300,10 @@ class TIN:
 
         lc = LineCollection(midpoints[pair_indexes],
                             linewidths=1, colors="green")
-        ax = self.plotTriangulation(autoShow=False)
+        ax = self.plot_triangulation(
+            auto_show=False, title="TIN Dual Graph")
         ax.add_collection(lc)
         ax.scatter(midpoints[:, 0], midpoints[:, 1])
-        plt.show()
-
-
-'''Read from input'''
-# x = np.genfromtxt("pts1000c.dat")
-
-'''Generate Input: '''
-PNFactory = PerlinNoiseFactory(2, octaves=1)
-
-'''Non-evenly sampled generation'''
-
-sz_datapoints = 100
-
-X = np.zeros(sz_datapoints)
-Y = np.zeros(sz_datapoints)
-elevation = np.zeros(sz_datapoints)
-for i in range(sz_datapoints):
-    x, y = np.random.random(2)*2 - 1
-    X[i], Y[i] = x, y
-    elevation[i] = PNFactory(x, y)
-
-# make elevations actually elevations (positive)
-elevation -= min(elevation)
-
-datapoints = np.column_stack([X, Y, elevation])
-
-myterrain = TIN(datapoints)
-
-
-# myterrain.plotPeaks()
-myterrain.plotPits()
-
-# myterrain.plotDualGraph()
-
-# myterrain.plotTriangulation()
-
-
-# print(myterrain.triangulation.vertex_neighbor_vertices)
-# myterrain.findElevation(*(np.random.random(2)*2 - 1))
-# myterrain.plotTriangulation()
-# myterrain.plotAltitude()
+        if auto_show:
+            plt.show()
+        return ax
