@@ -33,7 +33,8 @@ if __name__ == "__main__":
     tin_net.plot_elevation_profile()
 
     # PT2: Find Elevation value of planar location
-    x, y = np.random.random(2) * 0.5 - 1  # Random point in -0.5, 0.5 square
+    # Random point in -0.25, 0.25 square
+    x, y = np.random.random(2) * 0.25 - 0.5
     # DISCLAIMER: point MIGHT not be inside triangulation
     # (should raise error correctly.)
     tin_net.find_elevation(x, y, display=True)
