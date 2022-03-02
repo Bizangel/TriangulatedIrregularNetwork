@@ -3,9 +3,11 @@ Small TIN (Triangulated Irregular Network) implementation, with the help of scip
 It gives a nice simple interface for plotting things of interest such as:
 
 The associated surface:
+
 ![Associated Surface](imgs/sample_elevation.png)
 
 The Local Maximum and Minimum:
+
 ![Local Maxima](imgs/local_maximum.png)
 ![Local Minimum](imgs/local_minimum.png)
 
