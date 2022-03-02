@@ -10,7 +10,8 @@ class TIN:
     """Represents a TIN (Triangulated Irregular Network) of surface elevations.
 
     This class allows for several methods on a TIN, such as plotting,
-    querying local maximums and minimums and plotting the Dual Graph of associated triangulation.
+    querying local maximums and minimums and plotting
+    the Dual Graph of associated triangulation.
     """
 
     def __init__(self, datapoints: np.ndarray):
@@ -19,7 +20,8 @@ class TIN:
         Parameters
         ----------
         datapoints : ndarray
-            Numpy 2D array composed by three columns: x,y,z where z is the height.
+            Numpy 2D array composed by three columns: x,y,z
+            where z is the height.
             The datapoints to initialize and triangulate the TIN with.
 
         Raises
@@ -33,7 +35,8 @@ class TIN:
                 "Incompatible Array Dimension in TIN object creation")
         if (datapoints.shape[1] != 3):
             raise ValueError(
-                "Incompatible Array shape in TIN object creation, must be composed of three columns: x,y and z/height")
+                ("Incompatible Array shape in TIN object creation" +
+                 "must be composed of three columns: x,y and z/height"))
         self.x = datapoints[:, 0]
         self.y = datapoints[:, 1]
         self.altitude = datapoints[:, 2]
@@ -45,17 +48,21 @@ class TIN:
         self.triangulation = Delaunay(points)
         self.triangulation.vertex_to_simplex
 
-    def plot_triangulation(self, dot_size=0, auto_show=True, title="TIN Triangulation"):
+    def plot_triangulation(self, dot_size=0, auto_show=True,
+                           title="TIN Triangulation"):
         """Plot the 2D triangulation of the TIN.
 
-        Creates a new matplotlib.pyplot Figure and Axes, and plots the 2D triangulation of the TIN.
+        Creates a new matplotlib.pyplot Figure and Axes,
+        and plots the 2D triangulation of the TIN.
 
         Parameters
         ----------
         dot_size : int, optional
-            The size of the drawn vertex, if 0 vertex are not drawn, by default 0
+            The size of the drawn vertex, if 0 vertex are not drawn,
+            by default 0
         auto_show : bool, optional
-            If true, calls plt.show() performing a blocking call to display the triangulation, by default True
+            If true, calls plt.show() performing a
+            blocking call to display the triangulation, by default True
         title : str, optional
             Optional title for the plot figure, by default TIN Triangulation
 
@@ -76,9 +83,11 @@ class TIN:
     def find_elevation(self, x: float, y: float, display=False):
         """Find the elevation of given point in the TIN surface.
 
-        Finds the elevation of given point in the TIN surface, via linear interpolation.
-        Raises an error if point is outside triangulation. 
-        Optionally displays the point and the used triangle plane in interpolation.
+        Finds the elevation of given point in the TIN surface,
+        via linear interpolation.
+        Raises an error if point is outside triangulation.
+        Optionally displays the point and
+        the used triangle plane in interpolation.
 
         Parameters
         ----------
@@ -87,7 +96,8 @@ class TIN:
         y : float
             The Y-coordinate of the point to find the elevation.
         display : bool, optional
-            If true, creates a new plt figure and displays the point and corresponding triangle, by default False
+            If true, creates a new plt figure and displays the point
+            and corresponding triangle, by default False
 
         Raises
         ------
@@ -107,7 +117,9 @@ class TIN:
 
         p0, p1, p2 = self.triangulation.simplices[index][0]
         f0, f1, f2 = self.altitude[p0], self.altitude[p1], self.altitude[p2]
-        p0, p1, p2 = self.triangulation.points[p0], self.triangulation.points[p1], self.triangulation.points[p2]
+        p0 = self.triangulation.points[p0]
+        p1 = self.triangulation.points[p1]
+        p2 = self.triangulation.points[p2]
 
         height = griddata([p0, p1, p2], [f0, f1, f2],
                           [x, y], method="linear")[0]
@@ -116,10 +128,12 @@ class TIN:
             ax.plot([p0[0], p1[0], p2[0], p0[0]], [p0[1], p1[1], p2[1], p0[1]],
                     [f0, f1, f2, f0], marker=".", linewidth=2, c="red")
             ax.plot([x], [y], [height], marker="D", markersize=7, c="red")
-            lab1 = mlines.Line2D([], [], color='red', marker='.', linestyle='None',
-                                 markersize=10, label='Sample Points Used')
-            lab2 = mlines.Line2D([], [], color='red', marker='D', linestyle='None',
-                                 markersize=10, label='Interpolated Point')
+            lab1 = mlines.Line2D(
+                [], [], color='red', marker='.',
+                linestyle='None', markersize=10, label='Sample Points Used')
+            lab2 = mlines.Line2D(
+                [], [], color='red', marker='D', linestyle='None',
+                markersize=10, label='Interpolated Point')
             plt.legend(handles=[lab1, lab2])
             plt.show()
         return height
@@ -197,7 +211,8 @@ class TIN:
         pt_index : int
             The index of the point to query, in the sample (input) points.
         maximum : bool, optional
-            If true, will check for local maximum, else, will check for local minimum, by default True
+            If true, will check for local maximum,
+            else, will check for local minimum, by default True
 
         Returns
         -------
@@ -205,9 +220,9 @@ class TIN:
             Whether the point is a local extremum, according to parameters.
         """
         indptr, indices = self.triangulation.vertex_neighbor_vertices
-        neighbor_vertices_indexes = indices[indptr[pt_index]                                            :indptr[pt_index+1]]
+        neighbor_indexes = indices[indptr[pt_index]:indptr[pt_index+1]]
         is_extreme = True
-        for neighbor in neighbor_vertices_indexes:
+        for neighbor in neighbor_indexes:
             if maximum:
                 if self.altitude[neighbor] > self.altitude[pt_index]:
                     is_extreme = False
@@ -222,7 +237,8 @@ class TIN:
         Parameters
         ----------
         maximum : bool, optional
-            If True, will plot all local maximums, plots all local minimums otherwise, by default True
+            If True, will plot all local maximums,
+            plots all local minimums otherwise, by default True
         """
         extremes = [i for i in range(
             len(self.altitude)) if self.is_local_extremum(i, maximum=maximum)]
@@ -244,26 +260,31 @@ class TIN:
         plt.legend(handles=[lab])
         plt.show()
 
-    def plot_elevation_profile(self, autoShow=True, alpha=1, title="TIN Elevation Profile"):
+    def plot_elevation_profile(self, autoShow=True,
+                               alpha=1,  title="TIN Elevation Profile"):
         """Plot the associated surface to the TIN.
 
-        Creates a new matplotlib.pyplot Figure and Axes, and plots the associated surface to the TIN.
+        Creates a new matplotlib.pyplot Figure and Axes,
+        and plots the associated surface to the TIN.
 
         Parameters
         ----------
         auto_show : bool, optional
-            If true, calls plt.show() performing a blocking call to display the triangulation, by default True
+            If true, calls plt.show() performing a blocking call
+            to display the triangulation, by default True
 
         alpha : int, optional
             The transparency of the plotted surface, by default 1
 
         title : str, optional
-            An optional title for the plot figure, by default TIN Elevation Profile
+            An optional title for the plot figure,
+            by default TIN Elevation Profile
 
         Returns
         -------
         ~.axes.Axes
-            A matplotlib.pyplot Axes object, with 3D projection and the plotted surface.
+            A matplotlib.pyplot Axes object,
+            with 3D projection and the plotted surface.
         """
         fig = plt.figure(title)
         ax = plt.axes(projection='3d')
@@ -279,21 +300,24 @@ class TIN:
         Parameters
         ----------
         auto_show : bool, optional
-            If true, calls plt.show() performing a blocking call to display the triangulation, by default True
+            If true, calls plt.show() performing a blocking call
+            to display the triangulation, by default True
         dot_size : int, optional
             The size of the drawn graph vertex
 
         Returns
         -------
          ~.axes.Axes
-            A matplotlib.pyplot Axes object, with the dual graph on top of the triangulation 
+            A matplotlib.pyplot Axes object,
+            with the dual graph on top of the triangulation
         """
         # Calculate the midpoint for each triangle (for display reasons)
         n_triangles = len(self.triangulation.simplices)
         midpoints = self.triangulation.points[self.triangulation.simplices]
         midpoints = np.average(midpoints, axis=1)
 
-        # Calculate the pair of indices for each edge in the dual graph (according to the neighbors)
+        # Calculate the pair of indices for each edge
+        # in the dual graph (according to the neighbors)
         x = self.triangulation.neighbors[range(n_triangles)]
         tilehelp = np.tile(np.arange(n_triangles), (3, 1)).T
         tilehelp = tilehelp.reshape((-1,))

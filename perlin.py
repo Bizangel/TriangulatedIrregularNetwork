@@ -102,9 +102,9 @@ class PerlinNoiseFactory(object):
         # grid cell into the next.
         # Due to the way product() works, dot products are ordered such that
         # the last dimension alternates: (..., min), (..., max), etc.  So we
-        # can interpolate adjacent pairs to "collapse" that last dimension.  Then
-        # the results will alternate in their second-to-last dimension, and so
-        # forth, until we only have a single value left.
+        # can interpolate adjacent pairs to "collapse" that last dimension.
+        # Then the results will alternate in their second-to-last dimension,
+        # and so forth, until we only have a single value left.
         dim = self.dimension
         while len(dots) > 1:
             dim -= 1

@@ -3,8 +3,10 @@ from perlin import PerlinNoiseFactory
 import numpy as np
 
 if __name__ == "__main__":
-    # This is another test of suites, with a relatively smooth (Perlin Noise) generated surface
-    # Keep number of points low (less than 100) so you can see results more clearly.
+    # This is another test of suites,
+    # with a relatively smooth (Perlin Noise) generated surface
+    # Keep number of points low (less than 100)
+    # so you can see results more clearly.
 
     # Number of sampled datapoints
     sz_datapoints = 100
@@ -32,7 +34,8 @@ if __name__ == "__main__":
 
     # PT2: Find Elevation value of planar location
     x, y = np.random.random(2) * 0.5 - 1  # Random point in -0.5, 0.5 square
-    # DISCLAIMER: point MIGHT not be inside triangulation (should raise error correctly.)
+    # DISCLAIMER: point MIGHT not be inside triangulation
+    # (should raise error correctly.)
     tin_net.find_elevation(x, y, display=True)
 
     # Report all peaks
