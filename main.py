@@ -12,7 +12,8 @@ if __name__ == "__main__":
 
     # PT2: Find Elevation value of planar location
     x, y = np.random.random(2) * 20 - 10  # Random point in -10, 10 square
-    tin_net.find_elevation(x, y, display=True)
+    height = tin_net.find_elevation(x, y, display=True)
+    print(f"Interpolated Height: {height} of point ({x},{y})")
 
     # PT3: a) Query Whether a point is a water source. Peak point in sample data or relative maximum
     pt_index = np.random.randint(len(datapoints))  # Get a random sample point
